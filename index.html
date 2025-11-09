@@ -107,6 +107,50 @@
             font-weight: bold;
         }
         
+        .hall-of-fame {
+            background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            color: white;
+        }
+        
+        .hall-of-fame h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .hall-entry {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 12px 15px;
+            margin: 8px 0;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .hall-rank {
+            font-weight: bold;
+            font-size: 1.3em;
+            width: 40px;
+        }
+        
+        .hall-name {
+            flex: 1;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        
+        .hall-score {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #ffd89b;
+        }
+        
         .donation-section {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
             padding: 25px;
@@ -163,12 +207,33 @@
             text-align: center;
             display: none;
             z-index: 1000;
+            min-width: 400px;
         }
         
         .game-over h2 {
             font-size: 2.5em;
             color: #f5576c;
             margin-bottom: 20px;
+        }
+        
+        .name-input-container {
+            margin: 25px 0;
+        }
+        
+        .name-input-container p {
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .name-input {
+            padding: 12px 20px;
+            font-size: 1.2em;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            text-align: center;
+            text-transform: uppercase;
+            width: 200px;
+            max-width: 100%;
         }
         
         .restart-btn {
@@ -191,6 +256,10 @@
         @media (max-width: 768px) {
             .game-container {
                 flex-direction: column;
+            }
+            .game-over {
+                min-width: 300px;
+                padding: 30px 20px;
             }
         }
     </style>
@@ -224,8 +293,13 @@
             <p><kbd>R</kbd> Restart game</p>
         </div>
         
+        <div class="hall-of-fame">
+            <h2>🏆 HALL OF FAME</h2>
+            <div id="hallOfFameList"></div>
+        </div>
+        
         <div class="donation-section">
-            <h2>💝 Enjoying the game?</h2>
+            <h2>💜 Enjoying the game?</h2>
             <p>Support the developer with Bitcoin!</p>
             <div class="wallet-address" id="walletAddress">
                 bc1qlr9uh63mq6dfjutsrk4md7a4ggl7ruz648nkn3
@@ -237,6 +311,10 @@
     <div class="game-over" id="gameOverScreen">
         <h2>GAME OVER</h2>
         <p style="font-size: 1.5em; margin: 20px 0;">Final Score: <span id="finalScore">0</span></p>
+        <div class="name-input-container" id="nameInputContainer" style="display: none;">
+            <p>🎉 New High Score! Enter your name:</p>
+            <input type="text" id="playerName" class="name-input" maxlength="5" placeholder="NAME">
+        </div>
         <button class="restart-btn" onclick="restartGame()">Play Again</button>
     </div>
 
@@ -250,48 +328,22 @@
         const GRID_WIDTH = 15;
         const GRID_HEIGHT = 20;
         
-        // Colors - FIXED: Added missing commas
         const COLORS = [
-            '#00FFFF', // CYAN
-            '#FF00FF', // MAGENTA
-            '#FFFF00', // YELLOW
-            '#FF0000', // RED
-            '#00FF00', // GREEN
-            '#0000FF', // BLUE
-            '#FFA500', // ORANGE
-            '#CBF542', // LEMON
-            '#A442F5', // PURPLE
-            '#F5C542', // GOLD
-            '#F55742', // SUNSET
-            '#42D4F5', // SKYBLUE
-            '#34EB3D', // FROGGREEN
-            '#982222', // CARMINERED
-            '#004E7C', // GENTIANBLUE
-            '#223053', // COBALTBLUE - FIXED: Added comma
-            '#FF007F', // DEEPROSE
-            '#99FFCC'  // LIGHTGREEN
+            '#00FFFF', '#FF00FF', '#FFFF00', '#FF0000', '#00FF00', '#0000FF',
+            '#FFA500', '#CBF542', '#A442F5', '#F5C542', '#F55742', '#42D4F5',
+            '#34EB3D', '#982222', '#004E7C', '#223053', '#FF007F', '#99FFCC'
         ];
         
-        // 18 Pentamino shapes - FIXED: Added missing commas
         const SHAPES = [
-            [[1, 1, 1, 1, 1]],  // I
-            [[0, 1, 0], [1, 1, 1], [0, 1, 0]],  // cross
-            [[1, 1, 1], [0, 1, 0], [0, 1, 0]],  // T
-            [[1, 1, 0], [0, 1, 1], [0, 1, 0]],  // Life
-            [[0, 1, 1], [1, 1, 0], [0, 1, 0]],  // Life'
-            [[1, 1], [1, 1], [0, 1]],  // O'
-            [[1, 1], [1, 1], [1, 0]],  // O''
-            [[1, 1], [1, 0], [1, 1]],  // C
-            [[1, 1, 0], [0, 1, 0], [0, 1, 1]],  // Z
-            [[0, 1, 1], [0, 1, 0], [1, 1, 0]],  // S
-            [[1, 1, 1, 1], [0, 0, 0, 1]],  // J
-            [[1, 1, 1, 1], [1, 0, 0, 0]],  // L
-            [[1, 1, 0], [0, 1, 1], [0, 0, 1]],  // M
-            [[1, 0, 0], [1, 0, 0], [1, 1, 1]],  // Angle
-            [[1, 1, 1, 1], [0, 1, 0, 0]],  // sword
-            [[1, 1, 1, 1], [0, 0, 1, 0]],  // sword' - FIXED: Added comma
-            [[1, 1, 1, 0], [0, 0, 1, 1]],  // snake - FIXED: Added comma
-            [[0, 1, 1, 1], [1, 1, 0, 0]]  // snake'
+            [[1, 1, 1, 1, 1]], [[0, 1, 0], [1, 1, 1], [0, 1, 0]],
+            [[1, 1, 1], [0, 1, 0], [0, 1, 0]], [[1, 1, 0], [0, 1, 1], [0, 1, 0]],
+            [[0, 1, 1], [1, 1, 0], [0, 1, 0]], [[1, 1], [1, 1], [0, 1]],
+            [[1, 1], [1, 1], [1, 0]], [[1, 1], [1, 0], [1, 1]],
+            [[1, 1, 0], [0, 1, 0], [0, 1, 1]], [[0, 1, 1], [0, 1, 0], [1, 1, 0]],
+            [[1, 1, 1, 1], [0, 0, 0, 1]], [[1, 1, 1, 1], [1, 0, 0, 0]],
+            [[1, 1, 0], [0, 1, 1], [0, 0, 1]], [[1, 0, 0], [1, 0, 0], [1, 1, 1]],
+            [[1, 1, 1, 1], [0, 1, 0, 0]], [[1, 1, 1, 1], [0, 0, 1, 0]],
+            [[1, 1, 1, 0], [0, 0, 1, 1]], [[0, 1, 1, 1], [1, 1, 0, 0]]
         ];
         
         let grid = Array(GRID_HEIGHT).fill().map(() => Array(GRID_WIDTH).fill(0));
@@ -302,6 +354,56 @@
         let fallTime = 0;
         let lastTime = Date.now();
         const FALL_SPEED = 800;
+        
+        // Hall of Fame
+        let hallOfFame = [];
+        
+        function loadHallOfFame() {
+            const saved = localStorage.getItem('fivvixHallOfFame');
+            if (saved) {
+                hallOfFame = JSON.parse(saved);
+            } else {
+                hallOfFame = [
+                    {name: 'ALICE', score: 1000},
+                    {name: 'BOB', score: 800},
+                    {name: 'CAROL', score: 600},
+                    {name: 'DAVE', score: 400},
+                    {name: 'EVE', score: 200}
+                ];
+            }
+            displayHallOfFame();
+        }
+        
+        function saveHallOfFame() {
+            localStorage.setItem('fivvixHallOfFame', JSON.stringify(hallOfFame));
+        }
+        
+        function displayHallOfFame() {
+            const list = document.getElementById('hallOfFameList');
+            list.innerHTML = '';
+            hallOfFame.forEach((entry, index) => {
+                const medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
+                list.innerHTML += `
+                    <div class="hall-entry">
+                        <span class="hall-rank">${medals[index]}</span>
+                        <span class="hall-name">${entry.name}</span>
+                        <span class="hall-score">${entry.score}</span>
+                    </div>
+                `;
+            });
+        }
+        
+        function isHighScore(score) {
+            return hallOfFame.length < 5 || score > hallOfFame[hallOfFame.length - 1].score;
+        }
+        
+        function addToHallOfFame(name, score) {
+            hallOfFame.push({name: name.toUpperCase().slice(0, 5) || 'GUEST', score: score});
+            hallOfFame.sort((a, b) => b.score - a.score);
+            hallOfFame = hallOfFame.slice(0, 5);
+            saveHallOfFame();
+            displayHallOfFame();
+        }
         
         class Piece {
             constructor() {
@@ -364,7 +466,6 @@
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Draw locked pieces
             for (let y = 0; y < GRID_HEIGHT; y++) {
                 for (let x = 0; x < GRID_WIDTH; x++) {
                     if (grid[y][x]) {
@@ -374,7 +475,6 @@
                 }
             }
             
-            // Draw current piece
             if (currentPiece) {
                 ctx.fillStyle = currentPiece.color;
                 for (let y = 0; y < currentPiece.shape.length; y++) {
@@ -390,7 +490,6 @@
                 }
             }
             
-            // Draw grid lines
             ctx.strokeStyle = '#333';
             for (let x = 0; x <= GRID_WIDTH; x++) {
                 ctx.beginPath();
@@ -471,10 +570,28 @@
         
         function showGameOver() {
             document.getElementById('finalScore').textContent = score;
+            const nameInputContainer = document.getElementById('nameInputContainer');
+            
+            if (isHighScore(score)) {
+                nameInputContainer.style.display = 'block';
+                document.getElementById('playerName').value = '';
+                document.getElementById('playerName').focus();
+            } else {
+                nameInputContainer.style.display = 'none';
+            }
+            
             document.getElementById('gameOverScreen').style.display = 'block';
         }
         
         function restartGame() {
+            const nameInput = document.getElementById('playerName');
+            if (isHighScore(score) && nameInput.style.display !== 'none') {
+                const name = nameInput.value.trim();
+                if (name) {
+                    addToHallOfFame(name, score);
+                }
+            }
+            
             grid = Array(GRID_HEIGHT).fill().map(() => Array(GRID_WIDTH).fill(0));
             currentPiece = new Piece();
             nextPiece = new Piece();
@@ -499,9 +616,8 @@
             });
         }
         
-        // Keyboard controls
         document.addEventListener('keydown', (e) => {
-            if (gameOver && e.key === ' ') {
+            if (gameOver && (e.key === ' ' || e.key.toLowerCase() === 'r')) {
                 restartGame();
                 return;
             }
@@ -516,19 +632,34 @@
                 if (validMove(currentPiece, 1, 0)) {
                     currentPiece.x++;
                 }
-            } else if (e.key === 'ArrowDown') {
+            } else if (e.key === ' ') {
+                e.preventDefault();
                 if (validMove(currentPiece, 0, 1)) {
                     currentPiece.y++;
+                    score += 0;
+                    updateScore();
                 }
             } else if (e.key === 'ArrowUp') {
                 const rotated = currentPiece.rotate();
                 if (validMove(currentPiece, 0, 0, rotated)) {
                     currentPiece.shape = rotated;
                 }
+            } else if (e.key.toLowerCase() === 'r') {
+                if (confirm('Restart game? Your current score will be lost.')) {
+                    restartGame();
+                }
             }
         });
         
-        // Start the game
+        // Allow Enter key to submit name
+        document.getElementById('playerName').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                restartGame();
+            }
+        });
+        
+        // Initialize game
+        loadHallOfFame();
         currentPiece = new Piece();
         nextPiece = new Piece();
         updateScore();
