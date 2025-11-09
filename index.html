@@ -219,9 +219,9 @@
         <div class="controls">
             <h3>🎯 Controls</h3>
             <p><kbd>←</kbd> <kbd>→</kbd> Move left/right</p>
-            <p><kbd>↓</kbd> Move down faster</p>
+            <p><kbd>SPACE</kbd> Move down faster</p>
             <p><kbd>↑</kbd> Rotate piece</p>
-            <p><kbd>SPACE</kbd> Restart game</p>
+            <p><kbd>R</kbd> Restart game</p>
         </div>
         
         <div class="donation-section">
@@ -448,10 +448,11 @@
                 } else {
                     lockPiece(currentPiece);
                     const linesCleared = clearLines();
-                    score += linesCleared * 100;
+                    score += linesCleared * 200;
                     updateScore();
                     
                     currentPiece = nextPiece;
+                    score += 5;
                     nextPiece = new Piece();
                     
                     if (!validMove(currentPiece)) {
