@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pong Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #1a1a1a;
+            font-family: Arial, sans-serif;
+        }
+        #gameCanvas {
+            border: 2px solid #333;
+            display: block;
+        }
+        #instructions {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="instructions">
+        Player 1: W/S keys | Player 2: Arrow Up/Down
+    </div>
+    <canvas id="gameCanvas" width="1370" height="700"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Constants
+        const WIDTH = 1370;
+        const HEIGHT = 700;
+        const PADDLE_WIDTH = 15;
+        const PADDLE_HEIGHT = 200;
+        const BALL_SIZE = 15;
+        const FPS = 60;
+
+        // Audio context for sound generation
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Generate bounce sound
+        function playBounceSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 440;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.1);
+        }
+
+        // Generate goal sound
+        function playGoalSound() {
+            const oscillator1 = audioContext.createOscillator();
+            const oscillator2 = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator1.connect(gainNode);
+            oscillator2.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator1.frequency.value = 330;
+            oscillator2.frequency.value = 440;
+            oscillator1.type = 'sine';
+            oscillator2.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            
+            oscillator1.start(audioContext.currentTime);
+            oscillator1.stop(audioContext.currentTime + 0.15);
+            oscillator2.start(audioContext.currentTime + 0.15);
+            oscillator2.stop(audioContext.currentTime + 0.3);
+        }
+
+        // Paddle objects
+        const paddle1 = {
+            x: 50,
+            y: HEIGHT / 2 - PADDLE_HEIGHT / 2,
+            width: PADDLE_WIDTH,
+            height: PADDLE_HEIGHT,
+            speed: 7
+        };
+
+        const paddle2 = {
+            x: WIDTH - 50 - PADDLE_WIDTH,
+            y: HEIGHT / 2 - PADDLE_HEIGHT / 2,
+            width: PADDLE_WIDTH,
+            height: PADDLE_HEIGHT,
+            speed: 7
+        };
+
+        // Ball object
+        const ball = {
+            x: WIDTH / 2 - BALL_SIZE / 2,
+            y: HEIGHT / 2 - BALL_SIZE / 2,
+            size: BALL_SIZE,
+            speedX: 7,
+            speedY: 7,
+            initialSpeed: 7
+        };
+
+        // Speed parameters
+        const speedIncreaseFactor = 1.05;
+        const maxBallSpeed = 15;
+
+        // Scores
+        let score1 = 0;
+        let score2 = 0;
+
+        // Keyboard state
+        const keys = {};
+
+        // Event listeners for keyboard
+        window.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        // Reset ball to center
+        function resetBall() {
+            ball.x = WIDTH / 2 - BALL_SIZE / 2;
+            ball.y = HEIGHT / 2 - BALL_SIZE / 2;
+            ball.speedX = ball.speedX < 0 ? ball.initialSpeed : -ball.initialSpeed;
+            ball.speedY = ball.initialSpeed * (Math.random() > 0.5 ? 1 : -1);
+        }
+
+        // Increase ball speed
+        function increaseBallSpeed() {
+            const currentSpeed = Math.sqrt(ball.speedX ** 2 + ball.speedY ** 2);
+            
+            if (currentSpeed < maxBallSpeed) {
+                ball.speedX *= speedIncreaseFactor;
+                ball.speedY *= speedIncreaseFactor;
+            }
+        }
+
+        // Draw all game objects
+        function drawObjects() {
+            // Clear canvas
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+            // Draw paddles
+            ctx.fillStyle = 'white';
+            ctx.fillRect(paddle1.x, paddle1.y, paddle1.width, paddle1.height);
+            ctx.fillRect(paddle2.x, paddle2.y, paddle2.width, paddle2.height);
+
+            // Draw ball
+            ctx.beginPath();
+            ctx.arc(ball.x + ball.size / 2, ball.y + ball.size / 2, ball.size / 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw center line
+            ctx.strokeStyle = 'white';
+            ctx.setLineDash([10, 10]);
+            ctx.beginPath();
+            ctx.moveTo(WIDTH / 2, 0);
+            ctx.lineTo(WIDTH / 2, HEIGHT);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw scores
+            ctx.font = '84px Arial';
+            ctx.fillStyle = 'white';
+            ctx.fillText(score1, WIDTH / 4, 90);
+            ctx.fillText(score2, 3 * WIDTH / 4, 90);
+        }
+
+        // Move paddles based on key presses
+        function movePaddles() {
+            // Player 1 (W/S keys)
+            if (keys['w'] && paddle1.y > 0) {
+                paddle1.y -= paddle1.speed;
+            }
+            if (keys['s'] && paddle1.y + paddle1.height < HEIGHT) {
+                paddle1.y += paddle1.speed;
+            }
+
+            // Player 2 (Arrow keys)
+            if (keys['ArrowUp'] && paddle2.y > 0) {
+                paddle2.y -= paddle2.speed;
+            }
+            if (keys['ArrowDown'] && paddle2.y + paddle2.height < HEIGHT) {
+                paddle2.y += paddle2.speed;
+            }
+        }
+
+        // Move ball and handle collisions
+        function moveBall() {
+            // Move the ball
+            ball.x += ball.speedX;
+            ball.y += ball.speedY;
+
+            // Ball collision with top and bottom
+            if (ball.y <= 0 || ball.y + ball.size >= HEIGHT) {
+                ball.speedY *= -1;
+                playBounceSound();
+            }
+
+            // Ball collision with paddle 1
+            if (ball.x <= paddle1.x + paddle1.width &&
+                ball.x + ball.size >= paddle1.x &&
+                ball.y + ball.size >= paddle1.y &&
+                ball.y <= paddle1.y + paddle1.height) {
+                ball.speedX *= -1;
+                ball.x = paddle1.x + paddle1.width; // Prevent sticking
+                playBounceSound();
+                increaseBallSpeed();
+            }
+
+            // Ball collision with paddle 2
+            if (ball.x + ball.size >= paddle2.x &&
+                ball.x <= paddle2.x + paddle2.width &&
+                ball.y + ball.size >= paddle2.y &&
+                ball.y <= paddle2.y + paddle2.height) {
+                ball.speedX *= -1;
+                ball.x = paddle2.x - ball.size; // Prevent sticking
+                playBounceSound();
+                increaseBallSpeed();
+            }
+
+            // Ball goes out of bounds (scoring)
+            if (ball.x <= 0) {
+                score2++;
+                playGoalSound();
+                resetBall();
+            } else if (ball.x + ball.size >= WIDTH) {
+                score1++;
+                playGoalSound();
+                resetBall();
+            }
+        }
+
+        // Main game loop
+        function gameLoop() {
+            movePaddles();
+            moveBall();
+            drawObjects();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start the game
+        gameLoop();
+    </script>
+</body>
+</html>
